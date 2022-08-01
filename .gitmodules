@@ -1,0 +1,3 @@
+[submodule "VelocityUpstream"]
+	path = VelocityUpstream
+	url = https://github.com/PaperMC/Velocity
