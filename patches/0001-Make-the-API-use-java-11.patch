@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hygon <hygon806@gmail.com>
+Date: Tue, 2 Aug 2022 23:29:50 +0200
+Subject: [PATCH] Make the API use java 11
+
+
+diff --git a/api/build.gradle b/api/build.gradle
+index 7fad3475d439a74406fc061b377aea9b93207ffb..8c8b0fa89b6e5e3987600d7ae248239dc93707df 100644
+--- a/api/build.gradle
++++ b/api/build.gradle
+@@ -10,8 +10,8 @@ apply from: '../gradle/publish.gradle'
+ apply plugin: 'com.github.johnrengelman.shadow'
+ 
+ java {
+-    sourceCompatibility = JavaVersion.VERSION_1_8
+-    targetCompatibility = JavaVersion.VERSION_1_8
++    sourceCompatibility = JavaVersion.VERSION_11
++    targetCompatibility = JavaVersion.VERSION_11
+ }
+ 
+ license {
+@@ -82,7 +82,7 @@ artifacts {
+ javadoc {
+     options.encoding = 'UTF-8'
+     options.charSet = 'UTF-8'
+-    options.source = '8'
++    options.source = '11'
+     options.links(
+             'http://www.slf4j.org/apidocs/',
+             'https://google.github.io/guava/releases/25.1-jre/api/docs/',
+@@ -95,7 +95,7 @@ javadoc {
+     options.addStringOption('Xdoclint:none', '-quiet')
+ 
+     // Mark sources as Java 8 source compatible
+-    options.source = '8'
++    options.source = '11'
+ 
+     // Remove 'undefined' from seach paths when generating javadoc for a non-modular project (JDK-8215291)
+     if (JavaVersion.current() >= JavaVersion.VERSION_1_9 && JavaVersion.current() < JavaVersion.VERSION_12) {
