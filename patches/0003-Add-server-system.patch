@@ -524,21 +524,17 @@ index af49cf1e2381be7db33e304d504138cfe819d2e8..fa6b8260d16a80bd929261cf88920c61
     * Pings the specified server using the specified event {@code loop}, claiming to be
     * {@code version}.
 diff --git a/proxy/src/main/java/net/defade/velocity/listeners/ListenersManager.java b/proxy/src/main/java/net/defade/velocity/listeners/ListenersManager.java
-index 13b22887e48e73cf196f9e366b5f61d48f221622..3420f1eea1a53bdc24c6289aae4043e08ad0023c 100644
+index cc92311cc7558e40a2dc5762be98170cd77a92a8..5bcb656f4ecf80f12c9dad01bf1540b7dc33dbdd 100644
 --- a/proxy/src/main/java/net/defade/velocity/listeners/ListenersManager.java
 +++ b/proxy/src/main/java/net/defade/velocity/listeners/ListenersManager.java
-@@ -1,8 +1,9 @@
+@@ -1,5 +1,6 @@
  package net.defade.velocity.listeners;
  
 +import com.velocitypowered.proxy.VelocityServer;
  import net.defade.bismuth.core.listeners.server.ServerPacketListener;
  import net.defade.bismuth.core.protocol.ConnectionProtocol;
--import net.defade.bismuth.core.servers.Server;
-+import net.defade.bismuth.core.utils.NetworkInfos;
- import net.defade.bismuth.core.utils.ServerInfosProvider;
- import java.util.HashMap;
- import java.util.HashSet;
-@@ -10,9 +11,11 @@ import java.util.Map;
+ import net.defade.bismuth.core.servers.GameType;
+@@ -12,9 +13,11 @@ import java.util.Map;
  import java.util.Set;
  
  public class ListenersManager implements ServerInfosProvider {
@@ -551,7 +547,7 @@ index 13b22887e48e73cf196f9e366b5f61d48f221622..3420f1eea1a53bdc24c6289aae4043e0
  
      for(ConnectionProtocol protocols : ConnectionProtocol.values()) {
        if(protocols == ConnectionProtocol.LOGIN) continue;
-@@ -28,7 +31,7 @@ public class ListenersManager implements ServerInfosProvider {
+@@ -30,7 +33,7 @@ public class ListenersManager implements ServerInfosProvider {
    public ServerPacketListener getPacketListenerFromProtocol(ConnectionProtocol connectionProtocol) {
      switch (connectionProtocol) {
        case YOKURA:
@@ -560,14 +556,18 @@ index 13b22887e48e73cf196f9e366b5f61d48f221622..3420f1eea1a53bdc24c6289aae4043e0
          listeners.get(connectionProtocol).add(yokuraListener);
          return yokuraListener;
      }
-@@ -37,7 +40,7 @@ public class ListenersManager implements ServerInfosProvider {
+@@ -40,11 +43,11 @@ public class ListenersManager implements ServerInfosProvider {
+ 
+   @Override
+   public NetworkInfos getNetworkInfos() {
+-    return null;
++    return velocityServer.getConfiguration().getNetworkInfos();
    }
  
    @Override
--  public Server getServerFromServerId(String serverId) {
+   public Server getServer(GameType gameType, String velocityIdTracker) {
 -    return null;
-+  public NetworkInfos getNetworkInfos() {
-+    return velocityServer.getConfiguration().getNetworkInfos();
++    return velocityServer.getServersManager().getServer(gameType, velocityIdTracker);
    }
  }
 diff --git a/proxy/src/main/java/net/defade/velocity/listeners/YokuraListener.java b/proxy/src/main/java/net/defade/velocity/listeners/YokuraListener.java
@@ -620,10 +620,10 @@ index 62fab72126f0d141204dd12e1337568f4643bd33..ed3eb524917b90f4310ce1559b39d6a6
  }
 diff --git a/proxy/src/main/java/net/defade/velocity/servers/ServersManager.java b/proxy/src/main/java/net/defade/velocity/servers/ServersManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..332b4a9c67f60716afce9a77de4f4905d400b194
+index 0000000000000000000000000000000000000000..ce3c0198aebb97424dbc9a46cc286708c2dbed5a
 --- /dev/null
 +++ b/proxy/src/main/java/net/defade/velocity/servers/ServersManager.java
-@@ -0,0 +1,181 @@
+@@ -0,0 +1,186 @@
 +package net.defade.velocity.servers;
 +
 +import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -638,6 +638,7 @@ index 0000000000000000000000000000000000000000..332b4a9c67f60716afce9a77de4f4905
 +import net.defade.bismuth.core.protocol.packets.yokura.client.ClientboundStopServerPacket;
 +import net.defade.bismuth.core.servers.GameType;
 +import net.defade.bismuth.core.servers.Server;
++import net.defade.bismuth.core.servers.ServerStatus;
 +import net.defade.velocity.utils.FileUtils;
 +import org.apache.logging.log4j.LogManager;
 +import org.apache.logging.log4j.Logger;
@@ -737,7 +738,7 @@ index 0000000000000000000000000000000000000000..332b4a9c67f60716afce9a77de4f4905
 +
 +    ProcessBuilder processBuilder = new ProcessBuilder();
 +    processBuilder.directory(serverPath.toFile());
-+    processBuilder.command("java", "-jar", FileUtils.SERVER_JAR.getFileName().toString(), "--server-id=" + serverId);
++    processBuilder.command("java", "-jar", FileUtils.SERVER_JAR.getFileName().toString(), "--velocity-id-tracker=" + serverId);
 +    Process process;
 +    try {
 +      process = processBuilder.start();
@@ -803,6 +804,10 @@ index 0000000000000000000000000000000000000000..332b4a9c67f60716afce9a77de4f4905
 +
 +  public byte[] getForwardingKey() {
 +    return forwardingKey;
++  }
++
++  public Server getServer(GameType gameType, String velocityIdTracker) {
++    return new Server(velocityIdTracker == null ? gameType.toString() + serverIdProvider.getAndIncrement() : velocityIdTracker, gameType, ServerStatus.ACCEPTING_PLAYERS);
 +  }
 +}
 diff --git a/proxy/src/main/java/net/defade/velocity/utils/FileUtils.java b/proxy/src/main/java/net/defade/velocity/utils/FileUtils.java

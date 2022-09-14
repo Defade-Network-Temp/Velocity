@@ -5,14 +5,14 @@ Subject: [PATCH] Add Bismuth
 
 
 diff --git a/api/build.gradle b/api/build.gradle
-index 8c8b0fa89b6e5e3987600d7ae248239dc93707df..b9b208a591122b9a83a4de7cd15d71588f2d55c6 100644
+index 8c8b0fa89b6e5e3987600d7ae248239dc93707df..4a812601f1783b2954358299d64d2d2e907d4b6c 100644
 --- a/api/build.gradle
 +++ b/api/build.gradle
 @@ -25,6 +25,10 @@ sourceSets {
  }
  
  dependencies {
-+    api ('net.defade.bismuth:server:1.0-SNAPSHOT') {
++    api ('net.defade.bismuth:server:1.0.1') {
 +        exclude group: "org.apache.logging.log4j"
 +    }
 +
@@ -224,15 +224,17 @@ index b3f566cf99452aa7867574339500d448c46e957e..2acd73d80954ac4b382f01c57e256ed6
  }
 diff --git a/proxy/src/main/java/net/defade/velocity/listeners/ListenersManager.java b/proxy/src/main/java/net/defade/velocity/listeners/ListenersManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..13b22887e48e73cf196f9e366b5f61d48f221622
+index 0000000000000000000000000000000000000000..cc92311cc7558e40a2dc5762be98170cd77a92a8
 --- /dev/null
 +++ b/proxy/src/main/java/net/defade/velocity/listeners/ListenersManager.java
-@@ -0,0 +1,43 @@
+@@ -0,0 +1,50 @@
 +package net.defade.velocity.listeners;
 +
 +import net.defade.bismuth.core.listeners.server.ServerPacketListener;
 +import net.defade.bismuth.core.protocol.ConnectionProtocol;
++import net.defade.bismuth.core.servers.GameType;
 +import net.defade.bismuth.core.servers.Server;
++import net.defade.bismuth.core.utils.NetworkInfos;
 +import net.defade.bismuth.core.utils.ServerInfosProvider;
 +import java.util.HashMap;
 +import java.util.HashSet;
@@ -267,7 +269,12 @@ index 0000000000000000000000000000000000000000..13b22887e48e73cf196f9e366b5f61d4
 +  }
 +
 +  @Override
-+  public Server getServerFromServerId(String serverId) {
++  public NetworkInfos getNetworkInfos() {
++    return null;
++  }
++
++  @Override
++  public Server getServer(GameType gameType, String velocityIdTracker) {
 +    return null;
 +  }
 +}
