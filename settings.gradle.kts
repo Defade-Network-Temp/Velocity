@@ -6,4 +6,6 @@ pluginManagement {
     }
 }
 
-includeBuild("Velocity")
+if (File(rootDir, "Velocity").exists()) {
+    includeBuild("Velocity")
+}
