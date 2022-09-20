@@ -37,19 +37,10 @@ index faaa02d796eaf2252385e8c86be4c2705c1f4de2..8157474cd8d9ff144a0d801e14e61325
  
      test {
 diff --git a/proxy/src/main/java/com/velocitypowered/proxy/VelocityServer.java b/proxy/src/main/java/com/velocitypowered/proxy/VelocityServer.java
-index 9f0fe9a9d85e45ab549b8650c85bb50765acd69e..158c0d4a9f96f04c0c17715f4e9a5961497aa257 100644
+index 9f0fe9a9d85e45ab549b8650c85bb50765acd69e..451067a0263a1c356a0a50da7d3a4aed154f5c04 100644
 --- a/proxy/src/main/java/com/velocitypowered/proxy/VelocityServer.java
 +++ b/proxy/src/main/java/com/velocitypowered/proxy/VelocityServer.java
-@@ -63,6 +63,8 @@ import com.velocitypowered.proxy.util.bossbar.AdventureBossBarManager;
- import com.velocitypowered.proxy.util.ratelimit.Ratelimiter;
- import com.velocitypowered.proxy.util.ratelimit.Ratelimiters;
- import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-+import net.defade.bismuth.core.protocol.ConnectionProtocol;
-+import net.defade.bismuth.server.BismuthServer;
- import io.netty.bootstrap.Bootstrap;
- import io.netty.channel.Channel;
- import io.netty.channel.ChannelInitializer;
-@@ -74,6 +76,7 @@ import java.nio.file.Files;
+@@ -74,6 +74,7 @@ import java.nio.file.Files;
  import java.nio.file.Path;
  import java.security.AccessController;
  import java.security.KeyPair;
@@ -57,15 +48,16 @@ index 9f0fe9a9d85e45ab549b8650c85bb50765acd69e..158c0d4a9f96f04c0c17715f4e9a5961
  import java.security.PrivilegedAction;
  import java.util.ArrayList;
  import java.util.Collection;
-@@ -91,6 +94,7 @@ import java.util.concurrent.TimeoutException;
+@@ -91,6 +92,8 @@ import java.util.concurrent.TimeoutException;
  import java.util.concurrent.atomic.AtomicBoolean;
  import java.util.function.IntFunction;
  import java.util.stream.Collectors;
++import net.defade.bismuth.server.BismuthServer;
 +import net.defade.velocity.listeners.ListenersManager;
  import net.kyori.adventure.audience.Audience;
  import net.kyori.adventure.audience.ForwardingAudience;
  import net.kyori.adventure.key.Key;
-@@ -145,6 +149,8 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
+@@ -145,6 +148,8 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
    private final VelocityChannelRegistrar channelRegistrar = new VelocityChannelRegistrar();
    private ServerListPingHandler serverListPingHandler;
  
@@ -74,12 +66,13 @@ index 9f0fe9a9d85e45ab549b8650c85bb50765acd69e..158c0d4a9f96f04c0c17715f4e9a5961
    VelocityServer(final ProxyOptions options) {
      pluginManager = new VelocityPluginManager(this);
      eventManager = new VelocityEventManager(pluginManager);
-@@ -216,6 +222,17 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
+@@ -216,6 +221,18 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
  
      this.doStartupConfigLoad();
  
 +    try {
-+      BismuthServer bismuthServer = new BismuthServer(configuration.getBismuthHost(), configuration.getBismuthPort(), configuration.getBismuthPasswordHash(), listenersManager);
++      BismuthServer bismuthServer = new BismuthServer(configuration.getBismuthHost(), configuration.getBismuthPort(),
++              configuration.getBismuthPasswordHash(), listenersManager);
 +
 +      bismuthServer.bind();
 +    } catch (NoSuchAlgorithmException | InterruptedException exception) {
@@ -224,36 +217,61 @@ index b3f566cf99452aa7867574339500d448c46e957e..2acd73d80954ac4b382f01c57e256ed6
  }
 diff --git a/proxy/src/main/java/net/defade/velocity/listeners/ListenersManager.java b/proxy/src/main/java/net/defade/velocity/listeners/ListenersManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..cc92311cc7558e40a2dc5762be98170cd77a92a8
+index 0000000000000000000000000000000000000000..69ef4cea04f5c515886f0d251b274cfa043de5e7
 --- /dev/null
 +++ b/proxy/src/main/java/net/defade/velocity/listeners/ListenersManager.java
-@@ -0,0 +1,50 @@
+@@ -0,0 +1,76 @@
++/*
++ * Copyright (C) 2018 Velocity Contributors
++ *
++ * This program is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
++ */
++
 +package net.defade.velocity.listeners;
 +
-+import net.defade.bismuth.core.listeners.server.ServerPacketListener;
-+import net.defade.bismuth.core.protocol.ConnectionProtocol;
-+import net.defade.bismuth.core.servers.GameType;
-+import net.defade.bismuth.core.servers.Server;
-+import net.defade.bismuth.core.utils.NetworkInfos;
-+import net.defade.bismuth.core.utils.ServerInfosProvider;
 +import java.util.HashMap;
 +import java.util.HashSet;
 +import java.util.Map;
 +import java.util.Set;
++import net.defade.bismuth.core.listeners.server.ServerPacketListener;
++import net.defade.bismuth.core.protocol.ConnectionProtocol;
++import net.defade.bismuth.core.protocol.packets.Packet;
++import net.defade.bismuth.core.servers.GameType;
++import net.defade.bismuth.core.servers.Server;
++import net.defade.bismuth.core.utils.NetworkInfos;
++import net.defade.bismuth.core.utils.ServerInfosProvider;
 +
 +public class ListenersManager implements ServerInfosProvider {
 +  private final Map<ConnectionProtocol, Set<ServerPacketListener>> listeners = new HashMap<>();
 +
 +  public ListenersManager() {
 +
-+    for(ConnectionProtocol protocols : ConnectionProtocol.values()) {
-+      if(protocols == ConnectionProtocol.LOGIN) continue;
++    for (ConnectionProtocol protocols : ConnectionProtocol.values()) {
++      if (protocols == ConnectionProtocol.LOGIN) {
++        continue;
++      }
++
 +      listeners.put(protocols, new HashSet<>());
 +    }
 +  }
 +
 +  public Set<ServerPacketListener> getListenersForProtocol(ConnectionProtocol protocol) {
 +    return listeners.get(protocol);
++  }
++
++  public void sendPacketForProtocol(ConnectionProtocol protocol, Packet<?> packet) {
++    getListenersForProtocol(protocol).forEach(listener -> listener.sendPacket(packet));
 +  }
 +
 +  @Override
@@ -263,9 +281,10 @@ index 0000000000000000000000000000000000000000..cc92311cc7558e40a2dc5762be98170c
 +        YokuraListener yokuraListener = new YokuraListener();
 +        listeners.get(connectionProtocol).add(yokuraListener);
 +        return yokuraListener;
-+    }
 +
-+    return null;
++      default:
++        return null;
++    }
 +  }
 +
 +  @Override
@@ -280,10 +299,27 @@ index 0000000000000000000000000000000000000000..cc92311cc7558e40a2dc5762be98170c
 +}
 diff --git a/proxy/src/main/java/net/defade/velocity/listeners/YokuraListener.java b/proxy/src/main/java/net/defade/velocity/listeners/YokuraListener.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..62fab72126f0d141204dd12e1337568f4643bd33
+index 0000000000000000000000000000000000000000..887f292b99280fb3cfd037758e0cb4b129c5a2de
 --- /dev/null
 +++ b/proxy/src/main/java/net/defade/velocity/listeners/YokuraListener.java
-@@ -0,0 +1,7 @@
+@@ -0,0 +1,24 @@
++/*
++ * Copyright (C) 2018 Velocity Contributors
++ *
++ * This program is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
++ */
++
 +package net.defade.velocity.listeners;
 +
 +import net.defade.bismuth.core.listeners.server.YokuraServerPacketListener;

@@ -26,27 +26,19 @@ index 06cd0634812f552b0ff8b4667f584682cd61d04b..b5f1e3af424c6cf2f4c01e973abe6cbf
 +  void setBismuthServer(Server server);
  }
 diff --git a/proxy/src/main/java/com/velocitypowered/proxy/VelocityServer.java b/proxy/src/main/java/com/velocitypowered/proxy/VelocityServer.java
-index 158c0d4a9f96f04c0c17715f4e9a5961497aa257..6047a20241007d602a24b75c08131cfdfd2e85a5 100644
+index 451067a0263a1c356a0a50da7d3a4aed154f5c04..eec48b205e4ad6077f9f35290d6f76909df2cbe0 100644
 --- a/proxy/src/main/java/com/velocitypowered/proxy/VelocityServer.java
 +++ b/proxy/src/main/java/com/velocitypowered/proxy/VelocityServer.java
-@@ -76,6 +76,7 @@ import java.nio.file.Files;
- import java.nio.file.Path;
- import java.security.AccessController;
- import java.security.KeyPair;
-+import java.security.MessageDigest;
- import java.security.NoSuchAlgorithmException;
- import java.security.PrivilegedAction;
- import java.util.ArrayList;
-@@ -95,6 +96,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
- import java.util.function.IntFunction;
+@@ -94,6 +94,8 @@ import java.util.function.IntFunction;
  import java.util.stream.Collectors;
+ import net.defade.bismuth.server.BismuthServer;
  import net.defade.velocity.listeners.ListenersManager;
 +import net.defade.velocity.servers.ServersManager;
 +import net.defade.velocity.utils.FileUtils;
  import net.kyori.adventure.audience.Audience;
  import net.kyori.adventure.audience.ForwardingAudience;
  import net.kyori.adventure.key.Key;
-@@ -149,7 +152,8 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
+@@ -148,7 +150,8 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
    private final VelocityChannelRegistrar channelRegistrar = new VelocityChannelRegistrar();
    private ServerListPingHandler serverListPingHandler;
  
@@ -56,14 +48,6 @@ index 158c0d4a9f96f04c0c17715f4e9a5961497aa257..6047a20241007d602a24b75c08131cfd
  
    VelocityServer(final ProxyOptions options) {
      pluginManager = new VelocityPluginManager(this);
-@@ -224,7 +228,6 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
- 
-     try {
-       BismuthServer bismuthServer = new BismuthServer(configuration.getBismuthHost(), configuration.getBismuthPort(), configuration.getBismuthPasswordHash(), listenersManager);
--
-       bismuthServer.bind();
-     } catch (NoSuchAlgorithmException | InterruptedException exception) {
-       logger.error("Unable to start Bismuth server.", exception);
 @@ -233,6 +236,15 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
        return;
      }
@@ -90,17 +74,6 @@ index 158c0d4a9f96f04c0c17715f4e9a5961497aa257..6047a20241007d602a24b75c08131cfd
    }
  
    private void registerTranslations() {
-@@ -518,8 +533,8 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
-           // makes sure that all the disconnect events are being fired
- 
-           CompletableFuture<Void> playersTeardownFuture = CompletableFuture.allOf(players.stream()
--                  .map(ConnectedPlayer::getTeardownFuture)
--                  .toArray((IntFunction<CompletableFuture<Void>[]>) CompletableFuture[]::new));
-+              .map(ConnectedPlayer::getTeardownFuture)
-+              .toArray((IntFunction<CompletableFuture<Void>[]>) CompletableFuture[]::new));
- 
-           playersTeardownFuture.get(10, TimeUnit.SECONDS);
-         } catch (TimeoutException e) {
 @@ -542,6 +557,8 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
          Thread.currentThread().interrupt();
        }
@@ -110,33 +83,6 @@ index 158c0d4a9f96f04c0c17715f4e9a5961497aa257..6047a20241007d602a24b75c08131cfd
        // Since we manually removed the shutdown hook, we need to handle the shutdown ourselves.
        LogManager.shutdown();
  
-@@ -607,7 +624,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
-     return !(connectionsByName.containsKey(lowerName)
-         || connectionsByUuid.containsKey(connection.getUniqueId()));
-   }
--  
-+
-   /**
-    * Attempts to register the {@code connection} with the proxy.
-    * @param connection the connection to register
-@@ -666,7 +683,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
- 
-     return getAllPlayers().stream().filter(p -> p.getUsername()
-             .regionMatches(true, 0, partialName, 0, partialName.length()))
--            .collect(Collectors.toList());
-+        .collect(Collectors.toList());
-   }
- 
-   @Override
-@@ -675,7 +692,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
- 
-     return getAllServers().stream().filter(s -> s.getServerInfo().getName()
-             .regionMatches(true, 0, partialName, 0, partialName.length()))
--            .collect(Collectors.toList());
-+        .collect(Collectors.toList());
-   }
- 
-   @Override
 @@ -773,4 +790,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
      return listenersManager;
    }
@@ -146,28 +92,30 @@ index 158c0d4a9f96f04c0c17715f4e9a5961497aa257..6047a20241007d602a24b75c08131cfd
 +  }
  }
 diff --git a/proxy/src/main/java/com/velocitypowered/proxy/config/VelocityConfiguration.java b/proxy/src/main/java/com/velocitypowered/proxy/config/VelocityConfiguration.java
-index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..82bf4abbad582b6881ae31e837449cc3b79351f0 100644
+index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..0f456dbf23ff57d0a844e75a867381b4b5fc877f 100644
 --- a/proxy/src/main/java/com/velocitypowered/proxy/config/VelocityConfiguration.java
 +++ b/proxy/src/main/java/com/velocitypowered/proxy/config/VelocityConfiguration.java
-@@ -39,13 +39,10 @@ import java.nio.file.Files;
+@@ -39,13 +39,19 @@ import java.nio.file.Files;
  import java.nio.file.Path;
  import java.nio.file.StandardCopyOption;
  import java.security.SecureRandom;
--import java.util.Base64;
--import java.util.HashMap;
--import java.util.List;
--import java.util.Locale;
--import java.util.Map;
--import java.util.Optional;
--import java.util.Random;
-+import java.util.*;
-+
++import java.util.ArrayList;
+ import java.util.Base64;
++import java.util.Collections;
+ import java.util.HashMap;
++import java.util.HashSet;
+ import java.util.List;
+ import java.util.Locale;
+ import java.util.Map;
+ import java.util.Optional;
+ import java.util.Random;
++import java.util.Set;
 +import net.defade.bismuth.core.servers.GameType;
 +import net.defade.bismuth.core.utils.NetworkInfos;
  import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
  import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
  import org.apache.logging.log4j.LogManager;
-@@ -77,15 +74,17 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -77,15 +83,17 @@ public class VelocityConfiguration implements ProxyConfig {
    private @Nullable Favicon favicon;
    @Expose private boolean forceKeyAuthentication = true; // Added in 1.19
    private final Yokura yokura;
@@ -186,7 +134,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..82bf4abbad582b6881ae31e837449cc3
    }
  
    private VelocityConfiguration(String bind, String motd, int showMaxPlayers, boolean onlineMode,
-@@ -94,7 +93,7 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -94,7 +102,7 @@ public class VelocityConfiguration implements ProxyConfig {
        boolean onlineModeKickExistingPlayers, PingPassthroughMode pingPassthrough,
        boolean enablePlayerAddressLogging, Servers servers, ForcedHosts forcedHosts,
        Advanced advanced, Query query, Metrics metrics, boolean forceKeyAuthentication,
@@ -195,7 +143,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..82bf4abbad582b6881ae31e837449cc3
      this.bind = bind;
      this.motd = motd;
      this.showMaxPlayers = showMaxPlayers;
-@@ -113,6 +112,7 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -113,6 +121,7 @@ public class VelocityConfiguration implements ProxyConfig {
      this.metrics = metrics;
      this.forceKeyAuthentication = forceKeyAuthentication;
      this.yokura = yokura;
@@ -203,7 +151,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..82bf4abbad582b6881ae31e837449cc3
    }
  
    /**
-@@ -139,26 +139,6 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -139,26 +148,6 @@ public class VelocityConfiguration implements ProxyConfig {
            + "receive any support!");
      }
  
@@ -230,7 +178,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..82bf4abbad582b6881ae31e837449cc3
      for (Map.Entry<String, String> entry : servers.getServers().entrySet()) {
        try {
          AddressUtil.parseAddress(entry.getValue());
-@@ -168,28 +148,6 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -168,28 +157,6 @@ public class VelocityConfiguration implements ProxyConfig {
        }
      }
  
@@ -259,7 +207,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..82bf4abbad582b6881ae31e837449cc3
      try {
        getMotd();
      } catch (Exception e) {
-@@ -293,6 +251,10 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -293,6 +260,10 @@ public class VelocityConfiguration implements ProxyConfig {
      return forwardingSecret.clone();
    }
  
@@ -270,7 +218,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..82bf4abbad582b6881ae31e837449cc3
    @Override
    public Map<String, String> getServers() {
      return servers.getServers();
-@@ -403,6 +365,14 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -403,6 +374,14 @@ public class VelocityConfiguration implements ProxyConfig {
      return yokura.getBismuthPasswordHash();
    }
  
@@ -285,7 +233,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..82bf4abbad582b6881ae31e837449cc3
    @Override
    public String toString() {
      return MoreObjects.toStringHelper(this)
-@@ -438,12 +408,6 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -438,12 +417,6 @@ public class VelocityConfiguration implements ProxyConfig {
        throw new RuntimeException("Default configuration file does not exist.");
      }
  
@@ -298,7 +246,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..82bf4abbad582b6881ae31e837449cc3
      boolean mustResave = false;
      CommentedFileConfig config = CommentedFileConfig.builder(path)
          .defaultData(defaultConfigLocation)
-@@ -472,53 +436,6 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -472,53 +445,6 @@ public class VelocityConfiguration implements ProxyConfig {
        configVersion = 1.0;
      }
  
@@ -352,7 +300,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..82bf4abbad582b6881ae31e837449cc3
      if (configVersion == 1.0 || configVersion == 2.0) {
        config.set("force-key-authentication", config.getOrElse("force-key-authentication", true));
        config.setComment("force-key-authentication",
-@@ -533,18 +450,16 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -533,18 +459,16 @@ public class VelocityConfiguration implements ProxyConfig {
      }
  
      // Read the rest of the config
@@ -374,7 +322,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..82bf4abbad582b6881ae31e837449cc3
      String motd = config.getOrElse("motd", "&#09add3A Velocity Server");
      int maxPlayers = config.getIntOrElse("show-max-players", 500);
      Boolean onlineMode = config.getOrElse("online-mode", true);
-@@ -555,14 +470,6 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -555,14 +479,6 @@ public class VelocityConfiguration implements ProxyConfig {
      Boolean kickExisting = config.getOrElse("kick-existing-players", false);
      Boolean enablePlayerAddressLogging = config.getOrElse("enable-player-address-logging", true);
  
@@ -389,7 +337,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..82bf4abbad582b6881ae31e837449cc3
      return new VelocityConfiguration(
          bind,
          motd,
-@@ -571,17 +478,18 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -571,17 +487,18 @@ public class VelocityConfiguration implements ProxyConfig {
          preventClientProxyConnections,
          announceForge,
          forwardingMode,
@@ -412,7 +360,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..82bf4abbad582b6881ae31e837449cc3
      );
    }
  
-@@ -601,12 +509,8 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -601,12 +518,8 @@ public class VelocityConfiguration implements ProxyConfig {
  
    private static class Servers {
  
@@ -427,7 +375,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..82bf4abbad582b6881ae31e837449cc3
  
      private Servers() {
      }
-@@ -674,11 +578,7 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -674,11 +587,7 @@ public class VelocityConfiguration implements ProxyConfig {
  
    private static class ForcedHosts {
  
@@ -440,7 +388,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..82bf4abbad582b6881ae31e837449cc3
  
      private ForcedHosts() {
      }
-@@ -909,6 +809,8 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -909,6 +818,8 @@ public class VelocityConfiguration implements ProxyConfig {
      private int bismuthPort = 9600;
      private byte[] bismuthPasswordHash = new byte[0];
  
@@ -449,19 +397,19 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..82bf4abbad582b6881ae31e837449cc3
      private Yokura() {
      }
  
-@@ -917,6 +819,11 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -917,6 +828,11 @@ public class VelocityConfiguration implements ProxyConfig {
          this.bismuthHost = config.getOrElse("bismuth-host", "0.0.0.0");
          this.bismuthPort = config.getOrElse("bismuth-port", 9600);
          this.bismuthPasswordHash = Base64.getDecoder().decode(config.getOrElse("bismuth-password", ""));
 +
 +        ArrayList<CommentedConfig> games = config.get("games");
-+        for(CommentedConfig game : games) {
++        for (CommentedConfig game : games) {
 +          gameTypes.add(new GameType(game.get("game-name"), game.get("game-type")));
 +        }
        }
      }
  
-@@ -931,5 +838,24 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -931,5 +847,24 @@ public class VelocityConfiguration implements ProxyConfig {
      public byte[] getBismuthPasswordHash() {
        return bismuthPasswordHash;
      }
@@ -482,12 +430,12 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..82bf4abbad582b6881ae31e837449cc3
 +          config.getOrElse("mongo-password", ""),
 +          config.getOrElse("default-endermites", 200.0),
 +          config.getOrElse("default-crystals", 10.0)
-+          );
++      );
 +    }
    }
  }
 diff --git a/proxy/src/main/java/com/velocitypowered/proxy/server/VelocityRegisteredServer.java b/proxy/src/main/java/com/velocitypowered/proxy/server/VelocityRegisteredServer.java
-index af49cf1e2381be7db33e304d504138cfe819d2e8..fa6b8260d16a80bd929261cf88920c61646da09d 100644
+index af49cf1e2381be7db33e304d504138cfe819d2e8..753f3d12a2a7bc692007b788b85a9bd01b1f18d2 100644
 --- a/proxy/src/main/java/com/velocitypowered/proxy/server/VelocityRegisteredServer.java
 +++ b/proxy/src/main/java/com/velocitypowered/proxy/server/VelocityRegisteredServer.java
 @@ -54,6 +54,7 @@ import java.util.UUID;
@@ -506,8 +454,8 @@ index af49cf1e2381be7db33e304d504138cfe819d2e8..fa6b8260d16a80bd929261cf88920c61
  
    public VelocityRegisteredServer(@Nullable VelocityServer server, ServerInfo serverInfo) {
      this.server = server;
-@@ -85,6 +87,16 @@ public class VelocityRegisteredServer implements RegisteredServer, ForwardingAud
-     return ping(null, ProtocolVersion.UNKNOWN);
+@@ -128,6 +130,16 @@ public class VelocityRegisteredServer implements RegisteredServer, ForwardingAud
+     return pingFuture;
    }
  
 +  @Override
@@ -520,22 +468,23 @@ index af49cf1e2381be7db33e304d504138cfe819d2e8..fa6b8260d16a80bd929261cf88920c61
 +    this.bismuthServer = server;
 +  }
 +
-   /**
-    * Pings the specified server using the specified event {@code loop}, claiming to be
-    * {@code version}.
+   public void addPlayer(ConnectedPlayer player) {
+     players.put(player.getUniqueId(), player);
+   }
 diff --git a/proxy/src/main/java/net/defade/velocity/listeners/ListenersManager.java b/proxy/src/main/java/net/defade/velocity/listeners/ListenersManager.java
-index cc92311cc7558e40a2dc5762be98170cd77a92a8..5bcb656f4ecf80f12c9dad01bf1540b7dc33dbdd 100644
+index 69ef4cea04f5c515886f0d251b274cfa043de5e7..4877d9aa1fe4ff1fa2825bb04df26be360c3ed9b 100644
 --- a/proxy/src/main/java/net/defade/velocity/listeners/ListenersManager.java
 +++ b/proxy/src/main/java/net/defade/velocity/listeners/ListenersManager.java
-@@ -1,5 +1,6 @@
+@@ -17,6 +17,7 @@
+ 
  package net.defade.velocity.listeners;
  
 +import com.velocitypowered.proxy.VelocityServer;
- import net.defade.bismuth.core.listeners.server.ServerPacketListener;
- import net.defade.bismuth.core.protocol.ConnectionProtocol;
- import net.defade.bismuth.core.servers.GameType;
-@@ -12,9 +13,11 @@ import java.util.Map;
- import java.util.Set;
+ import java.util.HashMap;
+ import java.util.HashSet;
+ import java.util.Map;
+@@ -30,9 +31,11 @@ import net.defade.bismuth.core.utils.NetworkInfos;
+ import net.defade.bismuth.core.utils.ServerInfosProvider;
  
  public class ListenersManager implements ServerInfosProvider {
 +  private final VelocityServer velocityServer;
@@ -545,9 +494,9 @@ index cc92311cc7558e40a2dc5762be98170cd77a92a8..5bcb656f4ecf80f12c9dad01bf1540b7
 +  public ListenersManager(VelocityServer velocityServer) {
 +    this.velocityServer = velocityServer;
  
-     for(ConnectionProtocol protocols : ConnectionProtocol.values()) {
-       if(protocols == ConnectionProtocol.LOGIN) continue;
-@@ -30,7 +33,7 @@ public class ListenersManager implements ServerInfosProvider {
+     for (ConnectionProtocol protocols : ConnectionProtocol.values()) {
+       if (protocols == ConnectionProtocol.LOGIN) {
+@@ -55,7 +58,7 @@ public class ListenersManager implements ServerInfosProvider {
    public ServerPacketListener getPacketListenerFromProtocol(ConnectionProtocol connectionProtocol) {
      switch (connectionProtocol) {
        case YOKURA:
@@ -555,8 +504,8 @@ index cc92311cc7558e40a2dc5762be98170cd77a92a8..5bcb656f4ecf80f12c9dad01bf1540b7
 +        YokuraListener yokuraListener = new YokuraListener(velocityServer);
          listeners.get(connectionProtocol).add(yokuraListener);
          return yokuraListener;
-     }
-@@ -40,11 +43,11 @@ public class ListenersManager implements ServerInfosProvider {
+ 
+@@ -66,11 +69,11 @@ public class ListenersManager implements ServerInfosProvider {
  
    @Override
    public NetworkInfos getNetworkInfos() {
@@ -571,14 +520,18 @@ index cc92311cc7558e40a2dc5762be98170cd77a92a8..5bcb656f4ecf80f12c9dad01bf1540b7
    }
  }
 diff --git a/proxy/src/main/java/net/defade/velocity/listeners/YokuraListener.java b/proxy/src/main/java/net/defade/velocity/listeners/YokuraListener.java
-index 62fab72126f0d141204dd12e1337568f4643bd33..ed3eb524917b90f4310ce1559b39d6a61ed062d8 100644
+index 887f292b99280fb3cfd037758e0cb4b129c5a2de..fc56c0af524efda210d95549fd42ba0fc32a1af0 100644
 --- a/proxy/src/main/java/net/defade/velocity/listeners/YokuraListener.java
 +++ b/proxy/src/main/java/net/defade/velocity/listeners/YokuraListener.java
-@@ -1,7 +1,43 @@
+@@ -17,8 +17,51 @@
+ 
  package net.defade.velocity.listeners;
  
 +import com.velocitypowered.api.proxy.server.RegisteredServer;
 +import com.velocitypowered.proxy.VelocityServer;
++import java.net.InetSocketAddress;
++import java.util.HashSet;
++import java.util.Set;
  import net.defade.bismuth.core.listeners.server.YokuraServerPacketListener;
 +import net.defade.bismuth.core.protocol.ConnectionProtocol;
 +import net.defade.bismuth.core.protocol.packets.yokura.client.ClientboundForwardingKeyPacket;
@@ -586,30 +539,34 @@ index 62fab72126f0d141204dd12e1337568f4643bd33..ed3eb524917b90f4310ce1559b39d6a6
 +import net.defade.bismuth.core.protocol.packets.yokura.client.ClientboundUpdateServerStatusPacket;
 +import net.defade.bismuth.core.protocol.packets.yokura.server.ServerboundUpdateServerStatusPacket;
 +import net.defade.bismuth.core.servers.Server;
-+import java.util.Set;
-+import java.util.stream.Collectors;
  
  public class YokuraListener extends YokuraServerPacketListener {
 +  private final VelocityServer velocityServer;
++  private final ListenersManager listenersManager;
  
 +  public YokuraListener(VelocityServer velocityServer) {
 +    this.velocityServer = velocityServer;
++    this.listenersManager = velocityServer.getListenersManager();
 +  }
 +
 +  @Override
 +  public void updateServerStatus(ServerboundUpdateServerStatusPacket updateServerStatusPacket) {
 +    super.updateServerStatus(updateServerStatusPacket);
 +
-+    ClientboundUpdateServerStatusPacket clientboundUpdateServerStatusPacket = new ClientboundUpdateServerStatusPacket(getServer(), updateServerStatusPacket.getServerStatus());
-+    velocityServer.getListenersManager().getListenersForProtocol(ConnectionProtocol.YOKURA).forEach(listeners -> listeners.sendPacket(clientboundUpdateServerStatusPacket));
++    var packet = new ClientboundUpdateServerStatusPacket(getServer(), getServer().getServerStatus());
++    listenersManager.sendPacketForProtocol(ConnectionProtocol.YOKURA, packet);
 +  }
 +
 +  @Override
 +  public void channelActive() {
-+    velocityServer.getServersManager().registerServer(getServer(), getPort());
++    velocityServer.getServersManager().registerServer(getServer(), new InetSocketAddress("localhost", getPort()));
 +    sendPacket(new ClientboundForwardingKeyPacket(velocityServer.getServersManager().getForwardingKey()));
 +
-+    Set<Server> servers = velocityServer.getAllServers().stream().map(RegisteredServer::getBismuthServer).collect(Collectors.toSet());
++    Set<Server> servers = new HashSet<>();
++    for (RegisteredServer server : velocityServer.getAllServers()) {
++      servers.add(server.getBismuthServer());
++    }
++
 +    sendPacket(new ClientboundServersListPacket(servers));
 +  }
 +
@@ -620,10 +577,27 @@ index 62fab72126f0d141204dd12e1337568f4643bd33..ed3eb524917b90f4310ce1559b39d6a6
  }
 diff --git a/proxy/src/main/java/net/defade/velocity/servers/ServersManager.java b/proxy/src/main/java/net/defade/velocity/servers/ServersManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..ce3c0198aebb97424dbc9a46cc286708c2dbed5a
+index 0000000000000000000000000000000000000000..5d4ab5332031c8d13193b3ee69c40cde0cbdb2bb
 --- /dev/null
 +++ b/proxy/src/main/java/net/defade/velocity/servers/ServersManager.java
-@@ -0,0 +1,186 @@
+@@ -0,0 +1,222 @@
++/*
++ * Copyright (C) 2018 Velocity Contributors
++ *
++ * This program is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
++ */
++
 +package net.defade.velocity.servers;
 +
 +import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -631,17 +605,6 @@ index 0000000000000000000000000000000000000000..ce3c0198aebb97424dbc9a46cc286708
 +import com.velocitypowered.api.proxy.server.ServerInfo;
 +import com.velocitypowered.proxy.VelocityServer;
 +import com.velocitypowered.proxy.config.VelocityConfiguration;
-+import net.defade.bismuth.core.listeners.server.ServerPacketListener;
-+import net.defade.bismuth.core.protocol.ConnectionProtocol;
-+import net.defade.bismuth.core.protocol.packets.yokura.client.ClientboundCreatedServerPacket;
-+import net.defade.bismuth.core.protocol.packets.yokura.client.ClientboundForwardingKeyPacket;
-+import net.defade.bismuth.core.protocol.packets.yokura.client.ClientboundStopServerPacket;
-+import net.defade.bismuth.core.servers.GameType;
-+import net.defade.bismuth.core.servers.Server;
-+import net.defade.bismuth.core.servers.ServerStatus;
-+import net.defade.velocity.utils.FileUtils;
-+import org.apache.logging.log4j.LogManager;
-+import org.apache.logging.log4j.Logger;
 +import java.io.File;
 +import java.io.IOException;
 +import java.net.InetSocketAddress;
@@ -658,14 +621,27 @@ index 0000000000000000000000000000000000000000..ce3c0198aebb97424dbc9a46cc286708
 +import java.util.concurrent.Executors;
 +import java.util.concurrent.ThreadLocalRandom;
 +import java.util.concurrent.atomic.AtomicInteger;
++import net.defade.bismuth.core.protocol.ConnectionProtocol;
++import net.defade.bismuth.core.protocol.packets.yokura.client.ClientboundCreatedServerPacket;
++import net.defade.bismuth.core.protocol.packets.yokura.client.ClientboundForwardingKeyPacket;
++import net.defade.bismuth.core.protocol.packets.yokura.client.ClientboundStopServerPacket;
++import net.defade.bismuth.core.servers.GameType;
++import net.defade.bismuth.core.servers.Server;
++import net.defade.bismuth.core.servers.ServerStatus;
++import net.defade.velocity.listeners.ListenersManager;
++import net.defade.velocity.utils.FileUtils;
++import org.apache.logging.log4j.LogManager;
++import org.apache.logging.log4j.Logger;
 +
 +public class ServersManager {
-+  private final Logger LOGGER = LogManager.getLogger(ServersManager.class);
++  private static final Logger LOGGER = LogManager.getLogger(ServersManager.class);
 +
 +  private final VelocityServer velocityServer;
 +  private final VelocityConfiguration velocityConfiguration;
++  private final ListenersManager listenersManager;
 +
-+  private final ExecutorService serverCreationThreadPool = Executors.newFixedThreadPool(2, new ThreadFactoryBuilder().setNameFormat("Server Creation Thread #").build());
++  private final ExecutorService serverCreationThreadPool = Executors.newFixedThreadPool(2,
++          new ThreadFactoryBuilder().setNameFormat("Server Creation Thread #").build());
 +  private final Timer timer = new Timer("Server manager Scheduler");
 +
 +  private final Map<String, GameType> awaitingServers = new HashMap<>();
@@ -680,6 +656,7 @@ index 0000000000000000000000000000000000000000..ce3c0198aebb97424dbc9a46cc286708
 +  public ServersManager(VelocityServer velocityServer) {
 +    this.velocityServer = velocityServer;
 +    this.velocityConfiguration = velocityServer.getConfiguration();
++    this.listenersManager = velocityServer.getListenersManager();
 +  }
 +
 +  public void start() {
@@ -688,12 +665,19 @@ index 0000000000000000000000000000000000000000..ce3c0198aebb97424dbc9a46cc286708
 +      public void run() {
 +        ThreadLocalRandom.current().nextBytes(forwardingKey);
 +        ClientboundForwardingKeyPacket forwardingKeyPacket = new ClientboundForwardingKeyPacket(forwardingKey);
-+        velocityServer.getListenersManager().getListenersForProtocol(ConnectionProtocol.YOKURA).forEach(packetListener -> packetListener.sendPacket(forwardingKeyPacket));
++        listenersManager.sendPacketForProtocol(ConnectionProtocol.YOKURA, forwardingKeyPacket);
 +        velocityConfiguration.setForwardingSecret(forwardingKey);
 +
 +        for (GameType gameTypes : velocityConfiguration.getGameTypes()) {
-+          if (velocityServer.getAllServers().stream().anyMatch(server -> server.getBismuthServer().getGameType().equals(gameTypes))
-+              || awaitingServers.containsValue(gameTypes)) {
++          boolean gameTypeMatches = false;
++          for (RegisteredServer server : velocityServer.getAllServers()) {
++            if (server.getBismuthServer().getGameType().equals(gameTypes)) {
++              gameTypeMatches = true;
++              break;
++            }
++          }
++
++          if (gameTypeMatches || awaitingServers.containsValue(gameTypes)) {
 +            continue;
 +          }
 +
@@ -705,7 +689,7 @@ index 0000000000000000000000000000000000000000..ce3c0198aebb97424dbc9a46cc286708
 +            }
 +          }
 +
-+          if(startingServer == null || !awaitingServersProcess.get(startingServer).isAlive()) {
++          if (startingServer == null || !awaitingServersProcess.get(startingServer).isAlive()) {
 +            awaitingServers.remove(startingServer);
 +            awaitingServersProcess.remove(startingServer);
 +
@@ -727,7 +711,7 @@ index 0000000000000000000000000000000000000000..ce3c0198aebb97424dbc9a46cc286708
 +      Files.copy(FileUtils.SERVER_BISMUTH_PASS, Paths.get(serverPath + File.separator + "bismuth.password"));
 +      Path serverExtensionFolder = Paths.get(serverPath + File.separator + "extensions");
 +      Files.createDirectory(serverExtensionFolder);
-+      for (Path extension : FileUtils.getFiles(Paths.get(FileUtils.SERVERS_EXTENSIONS_FOLDER + File.separator + gameType))) {
++      for (Path extension : FileUtils.getFiles(FileUtils.SERVERS_EXTENSIONS_FOLDER + File.separator + gameType)) {
 +        FileUtils.copyPath(extension, serverExtensionFolder);
 +      }
 +
@@ -738,7 +722,11 @@ index 0000000000000000000000000000000000000000..ce3c0198aebb97424dbc9a46cc286708
 +
 +    ProcessBuilder processBuilder = new ProcessBuilder();
 +    processBuilder.directory(serverPath.toFile());
-+    processBuilder.command("java", "-jar", FileUtils.SERVER_JAR.getFileName().toString(), "--velocity-id-tracker=" + serverId);
++    processBuilder.command(
++            "java",
++            "-jar",
++            FileUtils.SERVER_JAR.getFileName().toString(),
++            "--velocity-id-tracker=" + serverId);
 +    Process process;
 +    try {
 +      process = processBuilder.start();
@@ -752,12 +740,12 @@ index 0000000000000000000000000000000000000000..ce3c0198aebb97424dbc9a46cc286708
 +    LOGGER.info("Created a " + gameType + " server.");
 +  }
 +
-+  public void registerServer(Server server, int port) {
++  public void registerServer(Server server, InetSocketAddress address) {
 +    try {
 +      awaitingServers.remove(server.getServerId());
 +      awaitingServersProcess.remove(server.getServerId());
 +
-+      RegisteredServer registeredServer = velocityServer.registerServer(new ServerInfo(server.getServerId(), new InetSocketAddress("localhost", port)));
++      RegisteredServer registeredServer = velocityServer.registerServer(new ServerInfo(server.getServerId(), address));
 +      registeredServer.setBismuthServer(server);
 +
 +      if (server.getGameType().getMiniGame().contains("hub")) {
@@ -765,7 +753,7 @@ index 0000000000000000000000000000000000000000..ce3c0198aebb97424dbc9a46cc286708
 +      }
 +
 +      ClientboundCreatedServerPacket createdServerPacket = new ClientboundCreatedServerPacket(server);
-+      velocityServer.getListenersManager().getListenersForProtocol(ConnectionProtocol.YOKURA).forEach(listeners -> listeners.sendPacket(createdServerPacket));
++      listenersManager.sendPacketForProtocol(ConnectionProtocol.YOKURA, createdServerPacket);
 +    } catch (Exception e) {
 +      e.printStackTrace();
 +    }
@@ -779,7 +767,7 @@ index 0000000000000000000000000000000000000000..ce3c0198aebb97424dbc9a46cc286708
 +
 +    LOGGER.info("Unregistered the " + registeredServer.getServerInfo().getName() + " server.");
 +
-+    if(isStopping && velocityServer.getAllServers().isEmpty()) {
++    if (isStopping && velocityServer.getAllServers().isEmpty()) {
 +      stopFuture.complete(null);
 +    }
 +  }
@@ -791,13 +779,13 @@ index 0000000000000000000000000000000000000000..ce3c0198aebb97424dbc9a46cc286708
 +    LOGGER.info("Stopping servers...");
 +
 +    ClientboundStopServerPacket stopServerPacket = new ClientboundStopServerPacket(reason);
-+    for(ServerPacketListener yokuraListeners : velocityServer.getListenersManager().getListenersForProtocol(ConnectionProtocol.YOKURA)) {
-+      yokuraListeners.sendPacket(stopServerPacket);
-+    }
++    listenersManager.sendPacketForProtocol(ConnectionProtocol.YOKURA, stopServerPacket);
 +
 +    try {
 +      stopFuture.get();
-+    } catch (InterruptedException | ExecutionException ignored) { }
++    } catch (InterruptedException | ExecutionException exception) {
++      LOGGER.warn("An exception has occurred whilst stopping servers.", exception);
++    }
 +
 +    LOGGER.info("Servers stopped.");
 +  }
@@ -807,15 +795,37 @@ index 0000000000000000000000000000000000000000..ce3c0198aebb97424dbc9a46cc286708
 +  }
 +
 +  public Server getServer(GameType gameType, String velocityIdTracker) {
-+    return new Server(velocityIdTracker == null ? gameType.toString() + serverIdProvider.getAndIncrement() : velocityIdTracker, gameType, ServerStatus.ACCEPTING_PLAYERS);
++    String serverId = velocityIdTracker;
++    if (serverId == null) {
++      serverId = gameType.toString() + serverIdProvider.getAndIncrement();
++    }
++
++    return new Server(serverId, gameType, ServerStatus.ACCEPTING_PLAYERS);
 +  }
 +}
 diff --git a/proxy/src/main/java/net/defade/velocity/utils/FileUtils.java b/proxy/src/main/java/net/defade/velocity/utils/FileUtils.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..87870c839fefa5ed082596d55ca58a93c403acb6
+index 0000000000000000000000000000000000000000..2eb387c69fa138fa566214b347933b2cb68a484f
 --- /dev/null
 +++ b/proxy/src/main/java/net/defade/velocity/utils/FileUtils.java
-@@ -0,0 +1,66 @@
+@@ -0,0 +1,87 @@
++/*
++ * Copyright (C) 2018 Velocity Contributors
++ *
++ * This program is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
++ */
++
 +package net.defade.velocity.utils;
 +
 +import java.io.File;
@@ -838,7 +848,7 @@ index 0000000000000000000000000000000000000000..87870c839fefa5ed082596d55ca58a93
 +    createFolderIfNotExists(SERVERS_ROOT_FOLDER);
 +    createFolderIfNotExists(SERVERS_EXTENSIONS_FOLDER);
 +
-+    if(Files.exists(TEMP_SERVERS_FOLDER)) {
++    if (Files.exists(TEMP_SERVERS_FOLDER)) {
 +      FileUtils.deletePath(TEMP_SERVERS_FOLDER);
 +    }
 +
@@ -861,13 +871,17 @@ index 0000000000000000000000000000000000000000..87870c839fefa5ed082596d55ca58a93
 +
 +  public static void copyPath(Path source, Path destination) throws IOException {
 +    Files.copy(source, Paths.get(destination + File.separator + source.getFileName()));
-+    if(Files.isDirectory(source)) {
++    if (Files.isDirectory(source)) {
 +      try (Stream<Path> files = Files.list(source)) {
 +        for (Path file : files.collect(Collectors.toList())) {
 +          copyPath(file, Paths.get(destination + File.separator + source.getFileName()));
 +        }
 +      }
 +    }
++  }
++
++  public static List<Path> getFiles(String path) throws IOException {
++    return getFiles(Paths.get(path));
 +  }
 +
 +  public static List<Path> getFiles(Path path) throws IOException {
@@ -877,7 +891,7 @@ index 0000000000000000000000000000000000000000..87870c839fefa5ed082596d55ca58a93
 +  }
 +
 +  private static void createFolderIfNotExists(Path path) throws IOException {
-+    if(!Files.exists(path)) {
++    if (!Files.exists(path)) {
 +      Files.createDirectory(path);
 +    }
 +  }
