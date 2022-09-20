@@ -20,7 +20,7 @@ index 8c8b0fa89b6e5e3987600d7ae248239dc93707df..4a812601f1783b2954358299d64d2d2e
      api "com.google.guava:guava:${guavaVersion}"
  
 diff --git a/build.gradle b/build.gradle
-index 2281d1af9ee27a20acf24d2e0b06548a7ae79def..202fdf37669f143efd4bc87f3259e9d3d58548d8 100644
+index faaa02d796eaf2252385e8c86be4c2705c1f4de2..8157474cd8d9ff144a0d801e14e6132556de83f6 100644
 --- a/build.gradle
 +++ b/build.gradle
 @@ -49,6 +49,12 @@ allprojects {
