@@ -520,16 +520,15 @@ index 69ef4cea04f5c515886f0d251b274cfa043de5e7..4877d9aa1fe4ff1fa2825bb04df26be3
    }
  }
 diff --git a/proxy/src/main/java/net/defade/velocity/listeners/YokuraListener.java b/proxy/src/main/java/net/defade/velocity/listeners/YokuraListener.java
-index 887f292b99280fb3cfd037758e0cb4b129c5a2de..fc56c0af524efda210d95549fd42ba0fc32a1af0 100644
+index 887f292b99280fb3cfd037758e0cb4b129c5a2de..a0e3d3547663561cc4ba01e9acfdb5d324026877 100644
 --- a/proxy/src/main/java/net/defade/velocity/listeners/YokuraListener.java
 +++ b/proxy/src/main/java/net/defade/velocity/listeners/YokuraListener.java
-@@ -17,8 +17,51 @@
+@@ -17,8 +17,50 @@
  
  package net.defade.velocity.listeners;
  
 +import com.velocitypowered.api.proxy.server.RegisteredServer;
 +import com.velocitypowered.proxy.VelocityServer;
-+import java.net.InetSocketAddress;
 +import java.util.HashSet;
 +import java.util.Set;
  import net.defade.bismuth.core.listeners.server.YokuraServerPacketListener;
@@ -559,7 +558,7 @@ index 887f292b99280fb3cfd037758e0cb4b129c5a2de..fc56c0af524efda210d95549fd42ba0f
 +
 +  @Override
 +  public void channelActive() {
-+    velocityServer.getServersManager().registerServer(getServer(), new InetSocketAddress("localhost", getPort()));
++    velocityServer.getServersManager().registerServer(getServer(), getAddress());
 +    sendPacket(new ClientboundForwardingKeyPacket(velocityServer.getServersManager().getForwardingKey()));
 +
 +    Set<Server> servers = new HashSet<>();

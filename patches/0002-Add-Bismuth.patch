@@ -5,14 +5,14 @@ Subject: [PATCH] Add Bismuth
 
 
 diff --git a/api/build.gradle b/api/build.gradle
-index 8c8b0fa89b6e5e3987600d7ae248239dc93707df..4a812601f1783b2954358299d64d2d2e907d4b6c 100644
+index 8c8b0fa89b6e5e3987600d7ae248239dc93707df..3524d7824dcfd592b00faece8b33cf2b042099e2 100644
 --- a/api/build.gradle
 +++ b/api/build.gradle
 @@ -25,6 +25,10 @@ sourceSets {
  }
  
  dependencies {
-+    api ('net.defade.bismuth:server:1.0.1') {
++    api ('net.defade.bismuth:server:1.1.0') {
 +        exclude group: "org.apache.logging.log4j"
 +    }
 +
