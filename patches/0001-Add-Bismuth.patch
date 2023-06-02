@@ -4,40 +4,49 @@ Date: Tue, 2 Aug 2022 00:04:39 +0200
 Subject: [PATCH] Add Bismuth
 
 
-diff --git a/api/build.gradle b/api/build.gradle
-index 8c8b0fa89b6e5e3987600d7ae248239dc93707df..3524d7824dcfd592b00faece8b33cf2b042099e2 100644
---- a/api/build.gradle
-+++ b/api/build.gradle
-@@ -25,6 +25,10 @@ sourceSets {
+diff --git a/api/build.gradle.kts b/api/build.gradle.kts
+index 1e448d0c2997f00efeed419bd68c310dda2fc36e..4059bf0c0a428b6fa2b838a70ae1822890c8f48a 100644
+--- a/api/build.gradle.kts
++++ b/api/build.gradle.kts
+@@ -17,6 +17,9 @@ java {
  }
  
  dependencies {
-+    api ('net.defade.bismuth:server:1.1.0') {
-+        exclude group: "org.apache.logging.log4j"
++    api(libs.bismuth) {
++        exclude(group = "org.apache.logging", module = "log4j")
 +    }
-+
-     api 'com.google.code.gson:gson:2.9.0'
-     api "com.google.guava:guava:${guavaVersion}"
+     api(libs.gson)
+     api(libs.guava)
  
-diff --git a/build.gradle b/build.gradle
-index faaa02d796eaf2252385e8c86be4c2705c1f4de2..8157474cd8d9ff144a0d801e14e6132556de83f6 100644
---- a/build.gradle
-+++ b/build.gradle
-@@ -49,6 +49,12 @@ allprojects {
-         maven {
-             url "https://nexus.velocitypowered.com/repository/maven-public/"
-         }
-+
-+        maven {
-+            url "https://repo.defade.net/defade"
+diff --git a/build.gradle.kts b/build.gradle.kts
+index f1a64c850551f4bc16761b5af92089abf27d9b28..baaae882ef6fcc32391bb35657f6e4a47f8c1d6c 100644
+--- a/build.gradle.kts
++++ b/build.gradle.kts
+@@ -23,6 +23,10 @@ subprojects {
+         mavenCentral()
+         maven("https://s01.oss.sonatype.org/content/repositories/snapshots/") // adventure
+         maven("https://repo.papermc.io/repository/maven-public/")
++        maven("https://repo.defade.net/defade") {
 +            name = "defade"
-+            credentials(PasswordCredentials.class)
++            credentials(PasswordCredentials::class)
 +        }
      }
  
-     test {
+     dependencies {
+diff --git a/gradle/libs.versions.toml b/gradle/libs.versions.toml
+index e2e762c018ca6292facf4e9acadb805e5b78e5b6..33dd663b5c839423704d4003f25c6ddb0058467a 100644
+--- a/gradle/libs.versions.toml
++++ b/gradle/libs.versions.toml
+@@ -10,6 +10,7 @@ shadow = "com.github.johnrengelman.shadow:8.1.0"
+ spotless = "com.diffplug.spotless:6.12.0"
+ 
+ [libraries]
++bismuth = "net.defade.bismuth:server:1.1.0"
+ adventure-bom = "net.kyori:adventure-bom:4.13.1"
+ adventure-facet = "net.kyori:adventure-platform-facet:4.3.0"
+ asynchttpclient = "org.asynchttpclient:async-http-client:2.12.3"
 diff --git a/proxy/src/main/java/com/velocitypowered/proxy/VelocityServer.java b/proxy/src/main/java/com/velocitypowered/proxy/VelocityServer.java
-index 9f0fe9a9d85e45ab549b8650c85bb50765acd69e..451067a0263a1c356a0a50da7d3a4aed154f5c04 100644
+index f82fd45d545e6259964cd3cdfc6fbf34a12958b9..8c69010c2cc85b59bd3ec37ed8b25679c5817d53 100644
 --- a/proxy/src/main/java/com/velocitypowered/proxy/VelocityServer.java
 +++ b/proxy/src/main/java/com/velocitypowered/proxy/VelocityServer.java
 @@ -74,6 +74,7 @@ import java.nio.file.Files;
@@ -57,7 +66,7 @@ index 9f0fe9a9d85e45ab549b8650c85bb50765acd69e..451067a0263a1c356a0a50da7d3a4aed
  import net.kyori.adventure.audience.Audience;
  import net.kyori.adventure.audience.ForwardingAudience;
  import net.kyori.adventure.key.Key;
-@@ -145,6 +148,8 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
+@@ -148,6 +151,8 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
    private final VelocityChannelRegistrar channelRegistrar = new VelocityChannelRegistrar();
    private ServerListPingHandler serverListPingHandler;
  
@@ -66,7 +75,7 @@ index 9f0fe9a9d85e45ab549b8650c85bb50765acd69e..451067a0263a1c356a0a50da7d3a4aed
    VelocityServer(final ProxyOptions options) {
      pluginManager = new VelocityPluginManager(this);
      eventManager = new VelocityEventManager(pluginManager);
-@@ -216,6 +221,18 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
+@@ -219,6 +224,18 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
  
      this.doStartupConfigLoad();
  
@@ -85,7 +94,7 @@ index 9f0fe9a9d85e45ab549b8650c85bb50765acd69e..451067a0263a1c356a0a50da7d3a4aed
      for (Map.Entry<String, String> entry : configuration.getServers().entrySet()) {
        servers.register(new ServerInfo(entry.getKey(), AddressUtil.parseAddress(entry.getValue())));
      }
-@@ -751,4 +768,9 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
+@@ -765,4 +782,8 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
    public ResourcePackInfo.Builder createResourcePackBuilder(String url) {
      return new VelocityResourcePackInfo.BuilderImpl(url);
    }
@@ -93,24 +102,23 @@ index 9f0fe9a9d85e45ab549b8650c85bb50765acd69e..451067a0263a1c356a0a50da7d3a4aed
 +  public ListenersManager getListenersManager() {
 +    return listenersManager;
 +  }
-+
  }
 diff --git a/proxy/src/main/java/com/velocitypowered/proxy/config/VelocityConfiguration.java b/proxy/src/main/java/com/velocitypowered/proxy/config/VelocityConfiguration.java
-index b3f566cf99452aa7867574339500d448c46e957e..2acd73d80954ac4b382f01c57e256ed68f7eb9f8 100644
+index 3afd9fc107034dd104cfb4fddfb8ab1c32fa0c8b..19cf6bef5e59d73f12438a126e8e6b7bc57fc37a 100644
 --- a/proxy/src/main/java/com/velocitypowered/proxy/config/VelocityConfiguration.java
 +++ b/proxy/src/main/java/com/velocitypowered/proxy/config/VelocityConfiguration.java
-@@ -39,6 +39,7 @@ import java.nio.file.Files;
+@@ -35,6 +35,7 @@ import java.nio.charset.StandardCharsets;
+ import java.nio.file.Files;
  import java.nio.file.Path;
- import java.nio.file.StandardCopyOption;
  import java.security.SecureRandom;
 +import java.util.Base64;
  import java.util.HashMap;
  import java.util.List;
  import java.util.Locale;
-@@ -75,14 +76,16 @@ public class VelocityConfiguration implements ProxyConfig {
-   private net.kyori.adventure.text.@MonotonicNonNull Component motdAsComponent;
+@@ -88,14 +89,16 @@ public class VelocityConfiguration implements ProxyConfig {
    private @Nullable Favicon favicon;
-   @Expose private boolean forceKeyAuthentication = true; // Added in 1.19
+   @Expose
+   private boolean forceKeyAuthentication = true; // Added in 1.19
 +  private final Yokura yokura;
  
    private VelocityConfiguration(Servers servers, ForcedHosts forcedHosts, Advanced advanced,
@@ -125,7 +133,7 @@ index b3f566cf99452aa7867574339500d448c46e957e..2acd73d80954ac4b382f01c57e256ed6
    }
  
    private VelocityConfiguration(String bind, String motd, int showMaxPlayers, boolean onlineMode,
-@@ -90,7 +93,8 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -103,7 +106,8 @@ public class VelocityConfiguration implements ProxyConfig {
        PlayerInfoForwarding playerInfoForwardingMode, byte[] forwardingSecret,
        boolean onlineModeKickExistingPlayers, PingPassthroughMode pingPassthrough,
        boolean enablePlayerAddressLogging, Servers servers, ForcedHosts forcedHosts,
@@ -135,7 +143,7 @@ index b3f566cf99452aa7867574339500d448c46e957e..2acd73d80954ac4b382f01c57e256ed6
      this.bind = bind;
      this.motd = motd;
      this.showMaxPlayers = showMaxPlayers;
-@@ -108,6 +112,7 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -121,6 +125,7 @@ public class VelocityConfiguration implements ProxyConfig {
      this.query = query;
      this.metrics = metrics;
      this.forceKeyAuthentication = forceKeyAuthentication;
@@ -143,7 +151,7 @@ index b3f566cf99452aa7867574339500d448c46e957e..2acd73d80954ac4b382f01c57e256ed6
    }
  
    /**
-@@ -386,6 +391,18 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -396,6 +401,18 @@ public class VelocityConfiguration implements ProxyConfig {
      return forceKeyAuthentication;
    }
  
@@ -162,7 +170,7 @@ index b3f566cf99452aa7867574339500d448c46e957e..2acd73d80954ac4b382f01c57e256ed6
    @Override
    public String toString() {
      return MoreObjects.toStringHelper(this)
-@@ -521,6 +538,7 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -550,6 +567,7 @@ public class VelocityConfiguration implements ProxyConfig {
      CommentedConfig advancedConfig = config.get("advanced");
      CommentedConfig queryConfig = config.get("query");
      CommentedConfig metricsConfig = config.get("metrics");
@@ -170,7 +178,7 @@ index b3f566cf99452aa7867574339500d448c46e957e..2acd73d80954ac4b382f01c57e256ed6
      PlayerInfoForwarding forwardingMode = config.getEnumOrElse("player-info-forwarding-mode",
          PlayerInfoForwarding.NONE);
      PingPassthroughMode pingPassthroughMode = config.getEnumOrElse("ping-passthrough",
-@@ -562,7 +580,8 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -590,7 +608,8 @@ public class VelocityConfiguration implements ProxyConfig {
          new Advanced(advancedConfig),
          new Query(queryConfig),
          new Metrics(metricsConfig),
@@ -180,7 +188,7 @@ index b3f566cf99452aa7867574339500d448c46e957e..2acd73d80954ac4b382f01c57e256ed6
      );
    }
  
-@@ -883,4 +902,34 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -931,4 +950,34 @@ public class VelocityConfiguration implements ProxyConfig {
        return enabled;
      }
    }
@@ -328,7 +336,7 @@ index 0000000000000000000000000000000000000000..887f292b99280fb3cfd037758e0cb4b1
 +
 +}
 diff --git a/proxy/src/main/resources/default-velocity.toml b/proxy/src/main/resources/default-velocity.toml
-index b8ac82fa50948c58985f94c43f481bd84c4dc8a4..954c8c2947867fe7550250e8b533fbdb98b39d6b 100644
+index 0f18208b551dfbb51911491cf0dd95a7190dd121..c911d407a38242b9c6ffc6ce768e03c01e984d5c 100644
 --- a/proxy/src/main/resources/default-velocity.toml
 +++ b/proxy/src/main/resources/default-velocity.toml
 @@ -153,3 +153,13 @@ map = "Velocity"

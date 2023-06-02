@@ -5,7 +5,7 @@ Subject: [PATCH] Add server system
 
 
 diff --git a/api/src/main/java/com/velocitypowered/api/proxy/server/RegisteredServer.java b/api/src/main/java/com/velocitypowered/api/proxy/server/RegisteredServer.java
-index 06cd0634812f552b0ff8b4667f584682cd61d04b..b5f1e3af424c6cf2f4c01e973abe6cbf9543eb17 100644
+index 1766833ecaad8554dcc57f551bf13f8e1e6350fe..829e485df5cbc1d5b9c3ce4c70389a2c67b5bc27 100644
 --- a/api/src/main/java/com/velocitypowered/api/proxy/server/RegisteredServer.java
 +++ b/api/src/main/java/com/velocitypowered/api/proxy/server/RegisteredServer.java
 @@ -11,6 +11,7 @@ import com.velocitypowered.api.proxy.Player;
@@ -16,17 +16,17 @@ index 06cd0634812f552b0ff8b4667f584682cd61d04b..b5f1e3af424c6cf2f4c01e973abe6cbf
  import net.kyori.adventure.audience.Audience;
  
  /**
-@@ -40,4 +41,8 @@ public interface RegisteredServer extends ChannelMessageSink, Audience {
-    * @return the server ping result from the server
+@@ -50,4 +51,8 @@ public interface RegisteredServer extends ChannelMessageSink, Audience {
+    * @since 3.2.0
     */
-   CompletableFuture<ServerPing> ping();
+   CompletableFuture<ServerPing> ping(PingOptions pingOptions);
 +
 +  Server getBismuthServer();
 +
 +  void setBismuthServer(Server server);
  }
 diff --git a/proxy/src/main/java/com/velocitypowered/proxy/VelocityServer.java b/proxy/src/main/java/com/velocitypowered/proxy/VelocityServer.java
-index 451067a0263a1c356a0a50da7d3a4aed154f5c04..eec48b205e4ad6077f9f35290d6f76909df2cbe0 100644
+index 8c69010c2cc85b59bd3ec37ed8b25679c5817d53..745f663d1d04fd8b6404593999d6d4b798909b7f 100644
 --- a/proxy/src/main/java/com/velocitypowered/proxy/VelocityServer.java
 +++ b/proxy/src/main/java/com/velocitypowered/proxy/VelocityServer.java
 @@ -94,6 +94,8 @@ import java.util.function.IntFunction;
@@ -38,7 +38,7 @@ index 451067a0263a1c356a0a50da7d3a4aed154f5c04..eec48b205e4ad6077f9f35290d6f7690
  import net.kyori.adventure.audience.Audience;
  import net.kyori.adventure.audience.ForwardingAudience;
  import net.kyori.adventure.key.Key;
-@@ -148,7 +150,8 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
+@@ -151,7 +153,8 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
    private final VelocityChannelRegistrar channelRegistrar = new VelocityChannelRegistrar();
    private ServerListPingHandler serverListPingHandler;
  
@@ -48,7 +48,7 @@ index 451067a0263a1c356a0a50da7d3a4aed154f5c04..eec48b205e4ad6077f9f35290d6f7690
  
    VelocityServer(final ProxyOptions options) {
      pluginManager = new VelocityPluginManager(this);
-@@ -233,6 +236,15 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
+@@ -236,6 +239,15 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
        return;
      }
  
@@ -64,7 +64,7 @@ index 451067a0263a1c356a0a50da7d3a4aed154f5c04..eec48b205e4ad6077f9f35290d6f7690
      for (Map.Entry<String, String> entry : configuration.getServers().entrySet()) {
        servers.register(new ServerInfo(entry.getKey(), AddressUtil.parseAddress(entry.getValue())));
      }
-@@ -260,6 +272,9 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
+@@ -263,6 +275,9 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
      }
  
      Metrics.VelocityMetrics.startMetrics(this, configuration.getMetrics());
@@ -74,7 +74,7 @@ index 451067a0263a1c356a0a50da7d3a4aed154f5c04..eec48b205e4ad6077f9f35290d6f7690
    }
  
    private void registerTranslations() {
-@@ -542,6 +557,8 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
+@@ -545,6 +560,8 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
          Thread.currentThread().interrupt();
        }
  
@@ -83,21 +83,22 @@ index 451067a0263a1c356a0a50da7d3a4aed154f5c04..eec48b205e4ad6077f9f35290d6f7690
        // Since we manually removed the shutdown hook, we need to handle the shutdown ourselves.
        LogManager.shutdown();
  
-@@ -773,4 +790,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
+@@ -786,4 +803,8 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
+   public ListenersManager getListenersManager() {
      return listenersManager;
    }
- 
++
 +  public ServersManager getServersManager() {
 +    return serversManager;
 +  }
  }
 diff --git a/proxy/src/main/java/com/velocitypowered/proxy/config/VelocityConfiguration.java b/proxy/src/main/java/com/velocitypowered/proxy/config/VelocityConfiguration.java
-index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..0f456dbf23ff57d0a844e75a867381b4b5fc877f 100644
+index 19cf6bef5e59d73f12438a126e8e6b7bc57fc37a..81d1f88851b8a99d4e2eb26f088ac348abc2bb73 100644
 --- a/proxy/src/main/java/com/velocitypowered/proxy/config/VelocityConfiguration.java
 +++ b/proxy/src/main/java/com/velocitypowered/proxy/config/VelocityConfiguration.java
-@@ -39,13 +39,19 @@ import java.nio.file.Files;
+@@ -35,13 +35,19 @@ import java.nio.charset.StandardCharsets;
+ import java.nio.file.Files;
  import java.nio.file.Path;
- import java.nio.file.StandardCopyOption;
  import java.security.SecureRandom;
 +import java.util.ArrayList;
  import java.util.Base64;
@@ -112,12 +113,12 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..0f456dbf23ff57d0a844e75a867381b4
 +import java.util.Set;
 +import net.defade.bismuth.core.servers.GameType;
 +import net.defade.bismuth.core.utils.NetworkInfos;
+ import net.kyori.adventure.text.minimessage.MiniMessage;
  import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
  import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
- import org.apache.logging.log4j.LogManager;
-@@ -77,15 +83,17 @@ public class VelocityConfiguration implements ProxyConfig {
-   private @Nullable Favicon favicon;
-   @Expose private boolean forceKeyAuthentication = true; // Added in 1.19
+@@ -90,15 +96,17 @@ public class VelocityConfiguration implements ProxyConfig {
+   @Expose
+   private boolean forceKeyAuthentication = true; // Added in 1.19
    private final Yokura yokura;
 +  private final Network network;
  
@@ -134,7 +135,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..0f456dbf23ff57d0a844e75a867381b4
    }
  
    private VelocityConfiguration(String bind, String motd, int showMaxPlayers, boolean onlineMode,
-@@ -94,7 +102,7 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -107,7 +115,7 @@ public class VelocityConfiguration implements ProxyConfig {
        boolean onlineModeKickExistingPlayers, PingPassthroughMode pingPassthrough,
        boolean enablePlayerAddressLogging, Servers servers, ForcedHosts forcedHosts,
        Advanced advanced, Query query, Metrics metrics, boolean forceKeyAuthentication,
@@ -143,7 +144,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..0f456dbf23ff57d0a844e75a867381b4
      this.bind = bind;
      this.motd = motd;
      this.showMaxPlayers = showMaxPlayers;
-@@ -113,6 +121,7 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -126,6 +134,7 @@ public class VelocityConfiguration implements ProxyConfig {
      this.metrics = metrics;
      this.forceKeyAuthentication = forceKeyAuthentication;
      this.yokura = yokura;
@@ -151,7 +152,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..0f456dbf23ff57d0a844e75a867381b4
    }
  
    /**
-@@ -139,26 +148,6 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -153,26 +162,6 @@ public class VelocityConfiguration implements ProxyConfig {
            + "receive any support!");
      }
  
@@ -178,7 +179,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..0f456dbf23ff57d0a844e75a867381b4
      for (Map.Entry<String, String> entry : servers.getServers().entrySet()) {
        try {
          AddressUtil.parseAddress(entry.getValue());
-@@ -168,28 +157,6 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -182,28 +171,6 @@ public class VelocityConfiguration implements ProxyConfig {
        }
      }
  
@@ -207,7 +208,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..0f456dbf23ff57d0a844e75a867381b4
      try {
        getMotd();
      } catch (Exception e) {
-@@ -293,6 +260,10 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -303,6 +270,10 @@ public class VelocityConfiguration implements ProxyConfig {
      return forwardingSecret.clone();
    }
  
@@ -218,7 +219,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..0f456dbf23ff57d0a844e75a867381b4
    @Override
    public Map<String, String> getServers() {
      return servers.getServers();
-@@ -403,6 +374,14 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -413,6 +384,14 @@ public class VelocityConfiguration implements ProxyConfig {
      return yokura.getBismuthPasswordHash();
    }
  
@@ -233,7 +234,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..0f456dbf23ff57d0a844e75a867381b4
    @Override
    public String toString() {
      return MoreObjects.toStringHelper(this)
-@@ -438,12 +417,6 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -449,12 +428,6 @@ public class VelocityConfiguration implements ProxyConfig {
        throw new RuntimeException("Default configuration file does not exist.");
      }
  
@@ -246,27 +247,29 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..0f456dbf23ff57d0a844e75a867381b4
      boolean mustResave = false;
      CommentedFileConfig config = CommentedFileConfig.builder(path)
          .defaultData(defaultConfigLocation)
-@@ -472,53 +445,6 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -472,56 +445,6 @@ public class VelocityConfiguration implements ProxyConfig {
        configVersion = 1.0;
      }
  
--    // Whether or not this config version is older than 2.0 which uses the deprecated "forwarding-secret" parameter
+-    // Whether or not this config version is older than 2.0 which uses the deprecated
+-    // "forwarding-secret" parameter
 -    boolean legacyConfig = configVersion < 2.0;
 -
 -    String forwardingSecretString;
 -    byte[] forwardingSecret;
 -
 -    // Handle the previous (version 1.0) config
--    // There is duplicate/old code here in effort to make the future commit which abandons legacy config handling
--    // easier to implement. All that would be required is removing the if statement here and keeping the contents
--    // of the else block (with slight tidying).
+-    // There is duplicate/old code here in effort to make the future commit which abandons legacy
+-    // config handling easier to implement. All that would be required is removing the if statement
+-    // here and keeping the contents of the else block (with slight tidying).
 -    if (legacyConfig) {
--      logger.warn("You are currently using a deprecated configuration version. The \"forwarding-secret\""
--          + " parameter has been recognized as a security concern and has been removed in config version 2.0."
--          + " It's recommended you rename your current \"velocity.toml\" to something else to allow Velocity"
--          + " to generate a config file of the new version. You may then configure that file as you normally would."
--          + " The only differences are the config-version and \"forwarding-secret\" has been replaced"
--          + " by \"forwarding-secret-file\".");
+-      logger.warn(
+-          "You are currently using a deprecated configuration version. The \"forwarding-secret\""
+-              + " parameter is a security hazard and was removed in config version 2.0."
+-              + " You should rename your current \"velocity.toml\" to something else to allow"
+-              + " Velocity to generate a config file for the new version. You may then configure "
+-              + " that file as you normally would. The only differences are the config-version "
+-              + "and \"forwarding-secret\" has been replaced by \"forwarding-secret-file\".");
 -
 -      // Default legacy handling
 -      forwardingSecretString = System.getenv()
@@ -288,10 +291,11 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..0f456dbf23ff57d0a844e75a867381b4
 -          if (Files.isRegularFile(secretPath)) {
 -            forwardingSecretString = String.join("", Files.readAllLines(secretPath));
 -          } else {
--            throw new RuntimeException("The file " + forwardSecretFile + " is not a valid file or it is a directory.");
+-            throw new RuntimeException(
+-                "The file " + forwardSecretFile + " is not a valid file or it is a directory.");
 -          }
 -        } else {
--          throw new RuntimeException("The forwarding-secret-file does not exists.");
+-          throw new RuntimeException("The forwarding-secret-file does not exist.");
 -        }
 -      }
 -    }
@@ -300,7 +304,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..0f456dbf23ff57d0a844e75a867381b4
      if (configVersion == 1.0 || configVersion == 2.0) {
        config.set("force-key-authentication", config.getOrElse("force-key-authentication", true));
        config.setComment("force-key-authentication",
-@@ -533,18 +459,16 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -562,18 +485,16 @@ public class VelocityConfiguration implements ProxyConfig {
      }
  
      // Read the rest of the config
@@ -319,14 +323,14 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..0f456dbf23ff57d0a844e75a867381b4
  
 -    String bind = config.getOrElse("bind", "0.0.0.0:25577");
 +    String bind = config.getOrElse("bind", "0.0.0.0:25565");
-     String motd = config.getOrElse("motd", "&#09add3A Velocity Server");
      int maxPlayers = config.getIntOrElse("show-max-players", 500);
      Boolean onlineMode = config.getOrElse("online-mode", true);
-@@ -555,14 +479,6 @@ public class VelocityConfiguration implements ProxyConfig {
+     Boolean forceKeyAuthentication = config.getOrElse("force-key-authentication", true);
+@@ -583,14 +504,6 @@ public class VelocityConfiguration implements ProxyConfig {
      Boolean kickExisting = config.getOrElse("kick-existing-players", false);
      Boolean enablePlayerAddressLogging = config.getOrElse("enable-player-address-logging", true);
  
--    // Throw an exception if the forwarding-secret file is empty and the proxy is using a 
+-    // Throw an exception if the forwarding-secret file is empty and the proxy is using a
 -    // forwarding mode that requires it.
 -    if (forwardingSecret.length == 0
 -        && (forwardingMode == PlayerInfoForwarding.MODERN
@@ -337,7 +341,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..0f456dbf23ff57d0a844e75a867381b4
      return new VelocityConfiguration(
          bind,
          motd,
-@@ -571,17 +487,18 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -599,17 +512,18 @@ public class VelocityConfiguration implements ProxyConfig {
          preventClientProxyConnections,
          announceForge,
          forwardingMode,
@@ -360,7 +364,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..0f456dbf23ff57d0a844e75a867381b4
      );
    }
  
-@@ -601,12 +518,8 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -629,12 +543,8 @@ public class VelocityConfiguration implements ProxyConfig {
  
    private static class Servers {
  
@@ -375,7 +379,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..0f456dbf23ff57d0a844e75a867381b4
  
      private Servers() {
      }
-@@ -674,11 +587,7 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -701,11 +611,7 @@ public class VelocityConfiguration implements ProxyConfig {
  
    private static class ForcedHosts {
  
@@ -388,7 +392,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..0f456dbf23ff57d0a844e75a867381b4
  
      private ForcedHosts() {
      }
-@@ -909,6 +818,8 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -957,6 +863,8 @@ public class VelocityConfiguration implements ProxyConfig {
      private int bismuthPort = 9600;
      private byte[] bismuthPasswordHash = new byte[0];
  
@@ -397,7 +401,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..0f456dbf23ff57d0a844e75a867381b4
      private Yokura() {
      }
  
-@@ -917,6 +828,11 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -965,6 +873,11 @@ public class VelocityConfiguration implements ProxyConfig {
          this.bismuthHost = config.getOrElse("bismuth-host", "0.0.0.0");
          this.bismuthPort = config.getOrElse("bismuth-port", 9600);
          this.bismuthPasswordHash = Base64.getDecoder().decode(config.getOrElse("bismuth-password", ""));
@@ -409,7 +413,7 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..0f456dbf23ff57d0a844e75a867381b4
        }
      }
  
-@@ -931,5 +847,24 @@ public class VelocityConfiguration implements ProxyConfig {
+@@ -979,5 +892,24 @@ public class VelocityConfiguration implements ProxyConfig {
      public byte[] getBismuthPasswordHash() {
        return bismuthPasswordHash;
      }
@@ -423,19 +427,19 @@ index 2acd73d80954ac4b382f01c57e256ed68f7eb9f8..0f456dbf23ff57d0a844e75a867381b4
 +
 +    public Network(CommentedConfig config) {
 +      super(
-+          config.getOrElse("mongo-host", "127.0.0.1"),
-+          config.getOrElse("mongo-port", 27017),
-+          config.getOrElse("mongo-username", "Defade"),
-+          config.getOrElse("mongo-database", "Defade"),
-+          config.getOrElse("mongo-password", ""),
-+          config.getOrElse("default-endermites", 200.0),
-+          config.getOrElse("default-crystals", 10.0)
++              config.getOrElse("mongo-host", "127.0.0.1"),
++              config.getOrElse("mongo-port", 27017),
++              config.getOrElse("mongo-username", "Defade"),
++              config.getOrElse("mongo-database", "Defade"),
++              config.getOrElse("mongo-password", ""),
++              config.getOrElse("default-endermites", 200.0),
++              config.getOrElse("default-crystals", 10.0)
 +      );
 +    }
    }
  }
 diff --git a/proxy/src/main/java/com/velocitypowered/proxy/server/VelocityRegisteredServer.java b/proxy/src/main/java/com/velocitypowered/proxy/server/VelocityRegisteredServer.java
-index af49cf1e2381be7db33e304d504138cfe819d2e8..753f3d12a2a7bc692007b788b85a9bd01b1f18d2 100644
+index 57780110b032abf6ed375efd679551f5363f7b14..4e36fd920354a041cb97ff8821aaf7d00b502596 100644
 --- a/proxy/src/main/java/com/velocitypowered/proxy/server/VelocityRegisteredServer.java
 +++ b/proxy/src/main/java/com/velocitypowered/proxy/server/VelocityRegisteredServer.java
 @@ -54,6 +54,7 @@ import java.util.UUID;
@@ -446,7 +450,7 @@ index af49cf1e2381be7db33e304d504138cfe819d2e8..753f3d12a2a7bc692007b788b85a9bd0
  import net.kyori.adventure.audience.Audience;
  import net.kyori.adventure.audience.ForwardingAudience;
  import org.checkerframework.checker.nullness.qual.NonNull;
-@@ -64,6 +65,7 @@ public class VelocityRegisteredServer implements RegisteredServer, ForwardingAud
+@@ -67,6 +68,7 @@ public class VelocityRegisteredServer implements RegisteredServer, ForwardingAud
    private final @Nullable VelocityServer server;
    private final ServerInfo serverInfo;
    private final Map<UUID, ConnectedPlayer> players = new ConcurrentHashMap<>();
@@ -454,7 +458,7 @@ index af49cf1e2381be7db33e304d504138cfe819d2e8..753f3d12a2a7bc692007b788b85a9bd0
  
    public VelocityRegisteredServer(@Nullable VelocityServer server, ServerInfo serverInfo) {
      this.server = server;
-@@ -128,6 +130,16 @@ public class VelocityRegisteredServer implements RegisteredServer, ForwardingAud
+@@ -138,6 +140,16 @@ public class VelocityRegisteredServer implements RegisteredServer, ForwardingAud
      return pingFuture;
    }
  
@@ -896,18 +900,18 @@ index 0000000000000000000000000000000000000000..2eb387c69fa138fa566214b347933b2c
 +  }
 +}
 diff --git a/proxy/src/main/resources/default-velocity.toml b/proxy/src/main/resources/default-velocity.toml
-index 954c8c2947867fe7550250e8b533fbdb98b39d6b..727d016120a53b925627a2d1ca9f7133dd667340 100644
+index c911d407a38242b9c6ffc6ce768e03c01e984d5c..6341b776bdcd4d9c4fe3275db4abed00184e41ec 100644
 --- a/proxy/src/main/resources/default-velocity.toml
 +++ b/proxy/src/main/resources/default-velocity.toml
 @@ -2,7 +2,7 @@
- config-version = "2.5"
+ config-version = "2.6"
  
  # What port should the proxy be bound to? By default, we'll bind to all addresses on port 25577.
 -bind = "0.0.0.0:25577"
 +bind = "0.0.0.0:25565"
  
  # What should be the MOTD? This gets displayed when the player adds your server to
- # their server list. Legacy color codes and JSON are accepted.
+ # their server list. Only MiniMessage format is accepted.
 @@ -23,23 +23,6 @@ force-key-authentication = true
  # connections but is a weak form of protection.
  prevent-client-proxy-connections = false
@@ -945,19 +949,19 @@ index 954c8c2947867fe7550250e8b533fbdb98b39d6b..727d016120a53b925627a2d1ca9f7133
 -
 -# In what order we should try servers when a player logs in or is kicked from a server.
 -try = [
--  "lobby"
+-    "lobby"
 -]
 -
 -[forced-hosts]
 -# Configure your forced hosts here.
 -"lobby.example.com" = [
--  "lobby"
+-    "lobby"
 -]
 -"factions.example.com" = [
--  "factions"
+-    "factions"
 -]
 -"minigames.example.com" = [
--  "minigames"
+-    "minigames"
 -]
 -
  [advanced]
